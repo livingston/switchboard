@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 88" fill="none">
+  <style>
+    .wire-v { stroke: #888; stroke-width: 2; }
+    .wire-h { stroke: #CC3352; stroke-width: 2; }
+    .pin { fill: #CC3352; }
+    .pin-open { fill: #2d2d2d; stroke: #CC3352; stroke-width: 1.5; }
+    .label { font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace; font-weight: 700; font-size: 18px; fill: #CC3352; }
+  </style>
+
+  <!-- Vertical wires (top) -->
+  <line class="wire-v" x1="68" y1="4" x2="68" y2="26"/>
+  <line class="wire-v" x1="88" y1="4" x2="88" y2="26"/>
+  <line class="wire-v" x1="108" y1="4" x2="108" y2="26"/>
+  <line class="wire-v" x1="128" y1="4" x2="128" y2="26"/>
+  <line class="wire-v" x1="148" y1="4" x2="148" y2="26"/>
+
+  <!-- Row 1: ● ● ○ ● ○ -->
+  <!-- Segments: start─●─●  ○  ●  ○─end -->
+  <line class="wire-v" x1="24" y1="34" x2="63" y2="34"/>
+  <line class="wire-h" x1="73" y1="34" x2="83" y2="34"/>
+  <line class="wire-h" x1="93" y1="34" x2="104" y2="34"/>
+  <line class="wire-h" x1="112" y1="34" x2="123" y2="34"/>
+  <line class="wire-h" x1="133" y1="34" x2="144" y2="34"/>
+  <line class="wire-v" x1="152" y1="34" x2="192" y2="34"/>
+  <circle class="pin" cx="68" cy="34" r="5"/>
+  <circle class="pin" cx="88" cy="34" r="5"/>
+  <circle class="pin-open" cx="108" cy="34" r="4"/>
+  <circle class="pin" cx="128" cy="34" r="5"/>
+  <circle class="pin-open" cx="148" cy="34" r="4"/>
+  <text class="label" x="204" y="39">SWITCH</text>
+
+  <!-- Row 2: ○ ● ● ○ ● -->
+  <line class="wire-v" x1="24" y1="54" x2="64" y2="54"/>
+  <line class="wire-h" x1="72" y1="54" x2="83" y2="54"/>
+  <line class="wire-h" x1="93" y1="54" x2="103" y2="54"/>
+  <line class="wire-h" x1="113" y1="54" x2="124" y2="54"/>
+  <line class="wire-h" x1="132" y1="54" x2="143" y2="54"/>
+  <line class="wire-v" x1="153" y1="54" x2="192" y2="54"/>
+  <circle class="pin-open" cx="68" cy="54" r="4"/>
+  <circle class="pin" cx="88" cy="54" r="5"/>
+  <circle class="pin" cx="108" cy="54" r="5"/>
+  <circle class="pin-open" cx="128" cy="54" r="4"/>
+  <circle class="pin" cx="148" cy="54" r="5"/>
+  <text class="label" x="204" y="59">BOARD</text>
+
+  <!-- Vertical wires (bottom) -->
+  <line class="wire-v" x1="68" y1="62" x2="68" y2="84"/>
+  <line class="wire-v" x1="88" y1="62" x2="88" y2="84"/>
+  <line class="wire-v" x1="108" y1="62" x2="108" y2="84"/>
+  <line class="wire-v" x1="128" y1="62" x2="128" y2="84"/>
+  <line class="wire-v" x1="148" y1="62" x2="148" y2="84"/>
+</svg>
