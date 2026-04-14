@@ -1,0 +1,21 @@
+{
+  "name": "switchboard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/main.ts",
+    "build": "bun build --compile src/main.ts --outfile switchboard",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@mariozechner/pi-tui": "latest",
+    "yaml": "^2.7.0",
+    "yoga-layout": "^3.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "latest",
+    "typescript": "^5.7.0"
+  }
+}
