@@ -140,7 +140,7 @@ export class ProcessManager {
       return { ok: false, error: msg };
     }
 
-    if (needsStdin && sudoPassword && proc.stdin) {
+    if (needsStdin && sudoPassword && proc.stdin && typeof proc.stdin !== "number") {
       proc.stdin.write(sudoPassword + "\n");
       proc.stdin.flush();
       proc.stdin.end();
@@ -237,9 +237,9 @@ export class ProcessManager {
 
   private async captureStream(
     managed: ManagedProcess,
-    stream: ReadableStream<Uint8Array> | null
+    stream: ReadableStream<Uint8Array> | number | null | undefined
   ): Promise<void> {
-    if (!stream) return;
+    if (!stream || typeof stream === "number") return;
     const reader = stream.getReader();
     const decoder = new TextDecoder();
     try {
@@ -278,7 +278,7 @@ export class ProcessManager {
         stdin: config.sudo ? "pipe" : undefined,
         env: spawnEnv,
       });
-      if (sudoPassword && proc.stdin) {
+      if (sudoPassword && proc.stdin && typeof proc.stdin !== "number") {
         proc.stdin.write(sudoPassword + "\n");
         proc.stdin.flush();
       }

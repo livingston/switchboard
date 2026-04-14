@@ -1,12 +1,23 @@
 {
   "name": "switchboard",
   "version": "0.1.0",
+  "description": "Terminal dashboard for starting, stopping, and monitoring local dev servers.",
+  "license": "MIT",
+  "author": "Livingston <livingston@users.noreply.github.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/livingston/switchboard.git"
+  },
+  "homepage": "https://github.com/livingston/switchboard#readme",
+  "bugs": "https://github.com/livingston/switchboard/issues",
+  "keywords": ["tui", "dashboard", "dev-server", "process-manager", "bun", "terminal"],
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "bun run src/main.ts",
     "build": "bun build --compile src/main.ts --outfile switchboard",
-    "test": "bun test"
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@mariozechner/pi-tui": "latest",
@@ -14,6 +25,7 @@
     "yoga-layout": "^3.2.1"
   },
   "devDependencies": {
+    "@types/bun": "^1.3.11",
     "@types/node": "^22.0.0",
     "tsx": "latest",
     "typescript": "^5.7.0"
