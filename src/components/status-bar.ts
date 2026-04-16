@@ -4,7 +4,7 @@ import { RESET, DIM, FG_GRAY, BOX_SINGLE, boxTop, boxBottom, boxRow } from "../a
 type ViewType = "dashboard" | "logs" | "add" | "edit";
 
 const KEYS: Record<ViewType, string> = {
-  dashboard: "↑↓←→ navigate  s start  x stop  r restart  l logs  S/X group  a add  ^L redraw  q quit",
+  dashboard: "↑↓←→ nav  s start  x stop  r restart  l logs  a add  e edit  d delete  S/X group  ^L redraw  q quit",
   logs: "esc back  / search  f follow  ↑↓ scroll",
   add: "tab/↓ next  ↑ prev  enter confirm  esc cancel",
   edit: "tab/↓ next  ↑ prev  enter confirm  esc cancel",

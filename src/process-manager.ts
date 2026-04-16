@@ -71,6 +71,7 @@ interface ManagedProcess {
   startedAt: number;
   status: ServerStatus;
   pid: number; // tracked separately for re-attached processes
+  pollInterval?: ReturnType<typeof setInterval>;
 }
 
 export class ProcessManager {
@@ -81,6 +82,7 @@ export class ProcessManager {
     if (existing && existing.status === "running") {
       await this.stop(key, sudoPassword, config);
     } else if (existing) {
+      this.markStopped(existing);
       this.processes.delete(key);
     }
 
@@ -125,6 +127,7 @@ export class ProcessManager {
         stderr: "pipe",
         stdin: needsStdin ? "pipe" : undefined,
         env: spawnEnv,
+        detached: true,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -189,11 +192,15 @@ export class ProcessManager {
           managed.status = "running";
           managed.logs.push(`[switchboard] Daemon running with PID ${daemonPid}`);
           this.pollAlive(key, daemonPid, managed);
+        } else {
+          // pidFile path but no live daemon found — process is done
+          managed.status = "stopped";
         }
-      }
-
-      // Still running or exited 0 without pidFile — set up exit handler for foreground
-      if (!exited.done) {
+      } else if (exited.done && exited.code === 0) {
+        // Sudo foreground exited cleanly in <5s with no pidFile — it's done.
+        managed.status = "stopped";
+      } else if (!exited.done) {
+        // Still running — wire an exit handler so status updates when it ends.
         proc.exited.then((code) => {
           const current = this.processes.get(key);
           if (current && current.proc === proc) {
@@ -302,10 +309,7 @@ export class ProcessManager {
       await this.killTree(managed.pid);
     }
 
-    if (managed) {
-      managed.status = "stopped";
-      managed.startedAt = 0;
-    }
+    if (managed) this.markStopped(managed);
     return { ok: true };
   }
 
@@ -320,12 +324,8 @@ export class ProcessManager {
   stopAll(): void {
     for (const [, managed] of this.processes) {
       if (managed.status === "running") {
-        if (managed.proc) {
-          managed.proc.kill("SIGTERM");
-        } else {
-          try { process.kill(managed.pid, "SIGTERM"); } catch { /* dead */ }
-        }
-        managed.status = "stopped";
+        this.signalTree(managed.pid, "SIGTERM");
+        this.markStopped(managed);
       }
     }
   }
@@ -347,29 +347,15 @@ export class ProcessManager {
   }
 
   private async killTree(pid: number): Promise<void> {
-    // Kill child processes first, then the parent
-    try {
-      const proc = Bun.spawn(["pkill", "-TERM", "-P", String(pid)], {
-        stdout: "pipe",
-        stderr: "pipe",
-      });
-      await proc.exited;
-    } catch { /* no children */ }
-
-    try { process.kill(pid, "SIGTERM"); } catch { /* dead */ }
-
-    // Wait up to 5s, then force kill
+    // kill(-pid) reaches the whole pgroup; pkill -P only walks depth 1 and orphans grandchildren.
+    this.signalTree(pid, "SIGTERM");
     await new Promise((r) => setTimeout(r, 1000));
-    if (this.isProcessAlive(pid)) {
-      try {
-        const proc = Bun.spawn(["pkill", "-KILL", "-P", String(pid)], {
-          stdout: "pipe",
-          stderr: "pipe",
-        });
-        await proc.exited;
-      } catch { /* no children */ }
-      try { process.kill(pid, "SIGKILL"); } catch { /* dead */ }
-    }
+    if (this.isProcessAlive(pid)) this.signalTree(pid, "SIGKILL");
+  }
+
+  private signalTree(pid: number, sig: NodeJS.Signals): void {
+    try { process.kill(-pid, sig); } catch { /* group gone or not a pgid leader */ }
+    try { process.kill(pid, sig); } catch { /* dead */ }
   }
 
   private readPidFile(path: string): number | null {
@@ -384,12 +370,18 @@ export class ProcessManager {
   }
 
   private pollAlive(key: string, pid: number, managed: ManagedProcess): void {
-    const interval = setInterval(() => {
-      if (!this.isProcessAlive(pid)) {
-        managed.status = "stopped";
-        clearInterval(interval);
-      }
+    managed.pollInterval = setInterval(() => {
+      if (!this.isProcessAlive(pid)) this.markStopped(managed);
     }, 2000);
+  }
+
+  private markStopped(managed: ManagedProcess): void {
+    managed.status = "stopped";
+    managed.startedAt = 0;
+    if (managed.pollInterval) {
+      clearInterval(managed.pollInterval);
+      managed.pollInterval = undefined;
+    }
   }
 
   isProcessAlive(pid: number): boolean {

@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach } from "bun:test";
+import { existsSync, unlinkSync } from "fs";
 import { ProcessManager } from "../src/process-manager";
 
 let pm: ProcessManager;
@@ -32,6 +33,35 @@ describe("ProcessManager", () => {
     await new Promise((r) => setTimeout(r, 200));
     const logs = pm.getLogs("echo-server");
     expect(logs.some((line) => line.includes("hello-world"))).toBe(true);
+  });
+
+  it("kills grandchild processes on stop (no orphans)", async () => {
+    pm = new ProcessManager();
+    const pidFile = `/tmp/sw-orphan-test-${Date.now()}-${process.pid}.pids`;
+    // The trailing ` ; true` prevents zsh from exec-replacing into bash,
+    // forcing a real 3-level tree: zsh → bash → sleep. The old impl used
+    // pkill -P which only walks depth 1, orphaning the sleep grandchild.
+    await pm.start("tree-server", {
+      name: "Tree",
+      cmd: `/bin/bash -c 'sleep 120 & echo "$$ $!" > ${pidFile}; wait' ; true`,
+    });
+
+    for (let i = 0; i < 50 && !existsSync(pidFile); i++) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    expect(existsSync(pidFile)).toBe(true);
+    const [wrapperPid, workerPid] = (await Bun.file(pidFile).text())
+      .trim().split(/\s+/).map(Number);
+    expect(pm.isProcessAlive(wrapperPid)).toBe(true);
+    expect(pm.isProcessAlive(workerPid)).toBe(true);
+
+    await pm.stop("tree-server");
+    await new Promise((r) => setTimeout(r, 300));
+
+    expect(pm.isProcessAlive(wrapperPid)).toBe(false);
+    expect(pm.isProcessAlive(workerPid)).toBe(false);
+
+    try { unlinkSync(pidFile); } catch { /* already gone */ }
   });
 
   it("detects a crashed process", async () => {

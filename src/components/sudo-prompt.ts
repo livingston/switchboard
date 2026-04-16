@@ -6,6 +6,7 @@ export class SudoPromptComponent implements Component {
   action: "start" | "stop" | "restart" = "start";
   password = "";
   error = "";
+  busy = false;
   termWidth = 80;
   termHeight = 24;
 
@@ -14,6 +15,7 @@ export class SudoPromptComponent implements Component {
     this.action = action;
     this.password = "";
     this.error = "";
+    this.busy = false;
   }
 
   typeChar(ch: string): void { this.password += ch; }
@@ -41,13 +43,20 @@ export class SudoPromptComponent implements Component {
       ));
     }
     dialogLines.push(indent + boxRow("", dialogWidth, BOX_DOUBLE, FG_YELLOW));
-    dialogLines.push(indent + boxRow(
-      ` Password: ${this.password.length > 0 ? "•".repeat(this.password.length) : ""}${FG_YELLOW}_${RESET}`,
-      dialogWidth, BOX_DOUBLE, FG_YELLOW
-    ));
+    if (this.busy) {
+      dialogLines.push(indent + boxRow(
+        ` ${DIM}authenticating…${RESET}`,
+        dialogWidth, BOX_DOUBLE, FG_YELLOW
+      ));
+    } else {
+      dialogLines.push(indent + boxRow(
+        ` Password: ${this.password.length > 0 ? "•".repeat(this.password.length) : ""}${FG_YELLOW}_${RESET}`,
+        dialogWidth, BOX_DOUBLE, FG_YELLOW
+      ));
+    }
     dialogLines.push(indent + boxRow("", dialogWidth, BOX_DOUBLE, FG_YELLOW));
     dialogLines.push(indent + boxRow(
-      `${DIM} enter submit  ·  esc cancel${RESET}`,
+      this.busy ? `${DIM} please wait…${RESET}` : `${DIM} enter submit  ·  esc cancel${RESET}`,
       dialogWidth, BOX_DOUBLE, FG_YELLOW
     ));
     dialogLines.push(indent + boxBottom(dialogWidth, BOX_DOUBLE, FG_YELLOW));

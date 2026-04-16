@@ -92,6 +92,18 @@ async function checkPorts(ports: number[]): Promise<Map<number, boolean>> {
   return result;
 }
 
+function statesEqual(a: Map<string, ServerState>, b: Map<string, ServerState>): boolean {
+  if (a.size !== b.size) return false;
+  for (const [key, sa] of a) {
+    const sb = b.get(key);
+    if (!sb) return false;
+    if (sa.status !== sb.status || sa.pid !== sb.pid ||
+        sa.cpu !== sb.cpu || sa.memMb !== sb.memMb ||
+        sa.startedAt !== sb.startedAt) return false;
+  }
+  return true;
+}
+
 async function refreshStates(): Promise<void> {
   const pids: number[] = [];
   const portsToCheck: number[] = [];
@@ -124,9 +136,10 @@ async function refreshStates(): Promise<void> {
     }
   }
   updateHeights();
+  const changed = !statesEqual(dashboard.states, next);
   dashboard.states = next;
   dashboard.config = config;
-  tui.requestRender();
+  if (changed) tui.requestRender();
 }
 
 async function handleStart(key: string): Promise<void> {
@@ -172,7 +185,7 @@ async function handleSudoSubmit(password: string): Promise<void> {
 
   // Show "working" feedback
   sudoPrompt.error = "";
-  sudoPrompt.password = "authenticating...";
+  sudoPrompt.busy = true;
   tui.requestRender(true);
 
   let result: { ok: boolean; error?: string } = { ok: true };
@@ -196,6 +209,7 @@ async function handleSudoSubmit(password: string): Promise<void> {
   if (!result.ok) {
     sudoPrompt.error = result.error ?? "Failed";
     sudoPrompt.password = "";
+    sudoPrompt.busy = false;
     tui.requestRender(true);
     return;
   }
@@ -276,12 +290,27 @@ async function handleStopGroup(groupName: string): Promise<void> {
   await refreshStates();
 }
 
-function handleQuit(): void {
-  saveProcessState(pm.getRunningEntries());
-  tui.stop();
+let shuttingDown = false;
+function shutdown(code = 0): void {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  try { saveProcessState(pm.getRunningEntries()); } catch { /* best effort */ }
+  try { tui.stop(); } catch { /* already stopped */ }
   process.stdout.write("\x1b[?1049l"); // Leave alternate screen buffer
-  process.exit(0);
+  process.exit(code);
 }
+
+function handleQuit(): void {
+  shutdown(0);
+}
+
+process.on("SIGINT", () => shutdown(130));
+process.on("SIGTERM", () => shutdown(143));
+process.on("uncaughtException", (err) => {
+  process.stdout.write("\x1b[?1049l");
+  console.error(err);
+  shutdown(1);
+});
 
 // ─── Input Handling ─────────────────────────────────────────────────────────
 
@@ -297,6 +326,7 @@ tui.addInputListener((data: string) => {
   }
 
   if (sudoState) {
+    if (sudoPrompt.busy) return CONSUME;
     if (matchesKey(data, Key.escape)) {
       sudoState = null;
       restoreFromSudo();
@@ -391,7 +421,6 @@ function handleFormInput(data: string): void {
 setInterval(async () => {
   await refreshStates();
   saveProcessState(pm.getRunningEntries());
-  tui.requestRender(true);
 }, 3000);
 
 setInterval(() => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import {
-  pad, stripAnsi, visLen, statusColor, formatUptime,
+  pad, stripAnsi, visLen, visTruncate, statusColor, formatUptime,
   boxTop, boxBottom, boxRow, BOX_SINGLE, BOX_ROUND,
   FG_GREEN, FG_RED, FG_GRAY, BOLD, RESET,
 } from "../src/ansi";
@@ -40,6 +40,32 @@ describe("visLen", () => {
 
   it("returns length of plain text", () => {
     expect(visLen("hello")).toBe(5);
+  });
+});
+
+describe("visTruncate", () => {
+  it("truncates plain strings to visible length", () => {
+    expect(visTruncate("hello world", 5)).toBe("hello");
+  });
+
+  it("preserves ANSI sequences and truncates visible chars", () => {
+    const input = `${FG_GREEN}hello world${RESET}`;
+    const out = visTruncate(input, 5);
+    expect(visLen(out)).toBe(5);
+    expect(stripAnsi(out)).toBe("hello");
+    expect(out).toContain(FG_GREEN);
+  });
+
+  it("returns the whole string when below max", () => {
+    expect(visTruncate("hi", 10)).toBe("hi");
+  });
+
+  it("does not split an ANSI sequence mid-escape", () => {
+    const input = `${FG_RED}abc${RESET}def`;
+    const out = visTruncate(input, 4);
+    expect(stripAnsi(out)).toBe("abcd");
+    // The red opening sequence should be present intact.
+    expect(out).toContain(FG_RED);
   });
 });
 

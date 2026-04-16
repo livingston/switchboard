@@ -1,5 +1,5 @@
 import type { Component } from "@mariozechner/pi-tui";
-import { RESET, BOLD, DIM, FG_BLUE, FG_GREEN, FG_YELLOW, FG_GRAY, BOX_SINGLE, boxTop, boxBottom } from "../ansi.js";
+import { RESET, BOLD, DIM, FG_BLUE, FG_GREEN, FG_YELLOW, FG_GRAY, BOX_SINGLE, boxTop, boxBottom, visLen, visTruncate } from "../ansi.js";
 
 export class LogViewerComponent implements Component {
   serverKey = "";
@@ -63,9 +63,9 @@ export class LogViewerComponent implements Component {
       }
     } else {
       for (const line of visible) {
-        const truncated = line.slice(0, width - 2);
-        const padLen = Math.max(0, width - 2 - truncated.length);
-        lines.push(`${FG_GRAY}│${RESET}${truncated}${" ".repeat(padLen)}${FG_GRAY}│${RESET}`);
+        const truncated = visTruncate(line, width - 2);
+        const padLen = Math.max(0, width - 2 - visLen(truncated));
+        lines.push(`${FG_GRAY}│${RESET}${truncated}${RESET}${" ".repeat(padLen)}${FG_GRAY}│${RESET}`);
       }
       for (let i = visible.length; i < logAreaHeight; i++) {
         lines.push(`${FG_GRAY}│${RESET}${" ".repeat(width - 2)}${FG_GRAY}│${RESET}`);

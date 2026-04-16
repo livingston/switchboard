@@ -27,6 +27,27 @@ export function visLen(s: string): number {
   return stripAnsi(s).length;
 }
 
+/** Truncate a string containing ANSI escape sequences to `maxVis` visible columns. */
+export function visTruncate(s: string, maxVis: number): string {
+  let out = "";
+  let vis = 0;
+  let i = 0;
+  while (i < s.length && vis < maxVis) {
+    if (s[i] === "\x1b" && s[i + 1] === "[") {
+      const end = s.indexOf("m", i);
+      if (end !== -1) {
+        out += s.slice(i, end + 1);
+        i = end + 1;
+        continue;
+      }
+    }
+    out += s[i];
+    vis++;
+    i++;
+  }
+  return out;
+}
+
 export function statusColor(status: "running" | "stopped" | "crashed"): string {
   switch (status) {
     case "running": return FG_GREEN;
