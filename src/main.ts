@@ -48,17 +48,28 @@ function updateHeights(): void {
   serverForm.allocatedHeight = contentHeight;
 }
 
+let logPollInterval: ReturnType<typeof setInterval> | null = null;
+
 function setView(v: View): void {
   view = v;
   statusBar.viewType = v.type;
   updateHeights();
+  if (v.type !== "logs" && logPollInterval) {
+    clearInterval(logPollInterval);
+    logPollInterval = null;
+  }
   switch (v.type) {
     case "dashboard":
       contentComponent = dashboard;
       break;
     case "logs":
-      logViewer.setLogSource(v.serverKey, () => pm.getLogs(v.serverKey));
+      logViewer.setLogSource(v.serverKey, () => pm.getLogs(v.serverKey), () => pm.getLogCount(v.serverKey));
       contentComponent = logViewer;
+      if (!logPollInterval) {
+        logPollInterval = setInterval(() => {
+          if (logViewer.pollLogs()) tui.requestRender();
+        }, 500);
+      }
       break;
     case "add":
       serverForm.loadForAdd();
@@ -183,7 +194,6 @@ async function handleSudoSubmit(password: string): Promise<void> {
   if (!sudoState) return;
   const { key, config: serverConfig, action } = sudoState;
 
-  // Show "working" feedback
   sudoPrompt.error = "";
   sudoPrompt.busy = true;
   tui.requestRender(true);
@@ -296,7 +306,7 @@ function shutdown(code = 0): void {
   shuttingDown = true;
   try { saveProcessState(pm.getRunningEntries()); } catch { /* best effort */ }
   try { tui.stop(); } catch { /* already stopped */ }
-  process.stdout.write("\x1b[?1049l"); // Leave alternate screen buffer
+  process.stdout.write("\x1b[?1049l");
   process.exit(code);
 }
 
@@ -422,12 +432,6 @@ setInterval(async () => {
   await refreshStates();
   saveProcessState(pm.getRunningEntries());
 }, 3000);
-
-setInterval(() => {
-  if (view.type === "logs") {
-    if (logViewer.pollLogs()) tui.requestRender();
-  }
-}, 500);
 
 // ─── Startup ────────────────────────────────────────────────────────────────
 

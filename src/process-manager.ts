@@ -28,6 +28,16 @@ function findShell(): string {
 
 const spawnEnv = { ...process.env, FORCE_COLOR: "1" };
 
+const SUDO_AUTH_FAIL_MARKERS = [
+  "incorrect password",
+  "Sorry, try again",
+  "no password was provided",
+];
+
+function isSudoAuthFailure(text: string): boolean {
+  return SUDO_AUTH_FAIL_MARKERS.some((m) => text.includes(m));
+}
+
 /** Ring buffer for log lines — O(1) push, no array shifting */
 class LogBuffer {
   private buf: string[];
@@ -47,6 +57,10 @@ class LogBuffer {
     } else {
       this.head = (this.head + 1) % this.cap;
     }
+  }
+
+  get length(): number {
+    return this.len;
   }
 
   toArray(): string[] {
@@ -175,10 +189,7 @@ export class ProcessManager {
         // Wait for streams to drain so logs are populated
         await new Promise((r) => setTimeout(r, 200));
         const logs = managed.logs.toArray().join("\n");
-        const isAuthFail = logs.includes("incorrect password") ||
-          logs.includes("Sorry, try again") ||
-          logs.includes("no password was provided");
-        const msg = isAuthFail ? "Incorrect password" : `Exit code ${exited.code}`;
+        const msg = isSudoAuthFailure(logs) ? "Incorrect password" : `Exit code ${exited.code}`;
         managed.status = "crashed";
         return { ok: false, error: msg };
       }
@@ -193,11 +204,9 @@ export class ProcessManager {
           managed.logs.push(`[switchboard] Daemon running with PID ${daemonPid}`);
           this.pollAlive(key, daemonPid, managed);
         } else {
-          // pidFile path but no live daemon found — process is done
           managed.status = "stopped";
         }
       } else if (exited.done && exited.code === 0) {
-        // Sudo foreground exited cleanly in <5s with no pidFile — it's done.
         managed.status = "stopped";
       } else if (!exited.done) {
         // Still running — wire an exit handler so status updates when it ends.
@@ -293,8 +302,9 @@ export class ProcessManager {
       const stderrPromise = new Response(proc.stderr).text();
       const exitCode = await proc.exited;
       const stderr = await stderrPromise;
-      if (exitCode !== 0 || stderr.includes("incorrect password") || stderr.includes("Sorry, try again")) {
-        const msg = (stderr.includes("incorrect password") || stderr.includes("Sorry, try again"))
+      const authFail = isSudoAuthFailure(stderr);
+      if (exitCode !== 0 || authFail) {
+        const msg = authFail
           ? "Incorrect password"
           : stderr.trim() || `Exit code ${exitCode}`;
         managed?.logs.push(`[switchboard] Stop failed: ${msg}`);
@@ -369,7 +379,7 @@ export class ProcessManager {
     }
   }
 
-  private pollAlive(key: string, pid: number, managed: ManagedProcess): void {
+  private pollAlive(_key: string, pid: number, managed: ManagedProcess): void {
     managed.pollInterval = setInterval(() => {
       if (!this.isProcessAlive(pid)) this.markStopped(managed);
     }, 2000);
@@ -430,6 +440,10 @@ export class ProcessManager {
 
   getLogs(key: string): string[] {
     return this.processes.get(key)?.logs.toArray() ?? [];
+  }
+
+  getLogCount(key: string): number {
+    return this.processes.get(key)?.logs.length ?? 0;
   }
 
   getPid(key: string): number | null {

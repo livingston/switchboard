@@ -60,7 +60,6 @@ export function renderCard(state: ServerState, focused: boolean): string[] {
   const name = state.config.name.slice(0, nameSpace);
   const nameGap = Math.max(0, nameSpace - name.length);
   const nameRowContent = `${nameStyle}${name}${RESET}${" ".repeat(nameGap)}${statusColor(state.status)}${statusLabel}${RESET}`;
-  cardRow(nameRowContent, inner, w, box, color); // compute but use manual since we have mixed styles
   lines.push(cardRow(nameRowContent, inner, w, box, color));
 
   // Command — word-wrap to multiple lines

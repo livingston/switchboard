@@ -1,9 +1,10 @@
 import type { Component } from "@mariozechner/pi-tui";
-import { RESET, BOLD, DIM, FG_BLUE, FG_GREEN, FG_YELLOW, FG_GRAY, BOX_SINGLE, boxTop, boxBottom, visLen, visTruncate } from "../ansi.js";
+import { RESET, BOLD, DIM, FG_BLUE, FG_GREEN, FG_YELLOW, FG_GRAY, BOX_SINGLE, boxTop, boxBottom, boxRow, visTruncate } from "../ansi.js";
 
 export class LogViewerComponent implements Component {
   serverKey = "";
   private getLogs: () => string[] = () => [];
+  private getCount: () => number = () => 0;
   private logs: string[] = [];
   private logCount = 0;
   scrollOffset = 0;
@@ -12,10 +13,11 @@ export class LogViewerComponent implements Component {
   searchMode = false;
   allocatedHeight = 0;
 
-  setLogSource(key: string, getter: () => string[]): void {
+  setLogSource(key: string, getLogs: () => string[], getCount: () => number): void {
     this.serverKey = key;
-    this.getLogs = getter;
-    this.logs = getter();
+    this.getLogs = getLogs;
+    this.getCount = getCount;
+    this.logs = getLogs();
     this.logCount = this.logs.length;
     this.scrollOffset = 0;
     this.follow = true;
@@ -24,13 +26,11 @@ export class LogViewerComponent implements Component {
   }
 
   pollLogs(): boolean {
-    const fresh = this.getLogs();
-    if (fresh.length !== this.logCount) {
-      this.logCount = fresh.length;
-      this.logs = fresh;
-      return true;
-    }
-    return false;
+    const freshCount = this.getCount();
+    if (freshCount === this.logCount) return false;
+    this.logCount = freshCount;
+    this.logs = this.getLogs();
+    return true;
   }
 
   invalidate(): void {}
@@ -57,18 +57,16 @@ export class LogViewerComponent implements Component {
 
     lines.push(boxTop(width, BOX_SINGLE, FG_GRAY));
     if (visible.length === 0) {
-      lines.push(`${FG_GRAY}│${RESET}${DIM} No logs yet...${RESET}${" ".repeat(Math.max(0, width - 18))}${FG_GRAY}│${RESET}`);
+      lines.push(boxRow(`${DIM} No logs yet...${RESET}`, width, BOX_SINGLE, FG_GRAY));
       for (let i = 1; i < logAreaHeight; i++) {
-        lines.push(`${FG_GRAY}│${RESET}${" ".repeat(width - 2)}${FG_GRAY}│${RESET}`);
+        lines.push(boxRow("", width, BOX_SINGLE, FG_GRAY));
       }
     } else {
       for (const line of visible) {
-        const truncated = visTruncate(line, width - 2);
-        const padLen = Math.max(0, width - 2 - visLen(truncated));
-        lines.push(`${FG_GRAY}│${RESET}${truncated}${RESET}${" ".repeat(padLen)}${FG_GRAY}│${RESET}`);
+        lines.push(boxRow(visTruncate(line, width - 2), width, BOX_SINGLE, FG_GRAY));
       }
       for (let i = visible.length; i < logAreaHeight; i++) {
-        lines.push(`${FG_GRAY}│${RESET}${" ".repeat(width - 2)}${FG_GRAY}│${RESET}`);
+        lines.push(boxRow("", width, BOX_SINGLE, FG_GRAY));
       }
     }
     lines.push(boxBottom(width, BOX_SINGLE, FG_GRAY));
